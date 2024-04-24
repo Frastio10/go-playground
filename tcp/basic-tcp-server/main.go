@@ -6,16 +6,24 @@ import (
 	"net"
 )
 
+type Message struct {
+	from    string
+	payload []byte
+}
+
 type Server struct {
-	addr  string
-	ln    net.Listener
+	addr string
+	ln   net.Listener
+
 	close chan struct{}
+	msg   chan Message
 }
 
 func NewServer(addr string) *Server {
 	return &Server{
 		addr:  addr,
 		close: make(chan struct{}),
+		msg:   make(chan Message, 10),
 	}
 }
 
@@ -60,14 +68,21 @@ func (s *Server) ReadPump(conn net.Conn) {
 			continue
 		}
 
-		msg := buf[:n]
-		fmt.Println(string(msg))
+		s.msg <- Message{
+			from:    conn.RemoteAddr().String(),
+			payload: buf[:n],
+		}
 	}
 }
 
 func main() {
-
 	server := NewServer(":3000")
+	go func() {
+		for msg := range server.msg {
+			fmt.Printf("RECV - [%s]: %s\n", msg.from, string(msg.payload))
+		}
+	}()
+
 	log.Fatal(server.Start())
 
 }
