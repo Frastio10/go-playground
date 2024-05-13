@@ -1,0 +1,155 @@
+<!-- Thank you, chatgpt for generating this page-->
+<!doctype html>
+<html>
+  <head>
+    <title>Chat App</title>
+    <style>
+      /* CSS for styling the chat app */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+
+      #chat-container {
+        width: 80%;
+        margin: 20px auto;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 5px;
+      }
+
+      #chat-area {
+        height: 300px;
+        overflow-y: auto;
+        padding-bottom: 10px;
+      }
+
+      .chat-bubble {
+        display: flex;
+        align-items: flex-end;
+        margin-bottom: 10px;
+      }
+
+      .chat-bubble p {
+        padding: 10px;
+        border-radius: 15px;
+        margin: 0;
+        max-width: 70%;
+        word-wrap: break-word;
+      }
+
+      .received {
+        justify-content: flex-start;
+      }
+
+      .received p {
+        background-color: #f1f1f1;
+        border: 1px solid #ccc;
+      }
+
+      .sent {
+        justify-content: flex-end;
+      }
+
+      .sent p {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      #input-container {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      #message-input {
+        width: 80%;
+        padding: 5px;
+      }
+
+      #send-button {
+        width: 18%;
+        padding: 5px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      #send-button:hover {
+        background-color: #45a049;
+      }
+    </style>
+    <script crossorigin src="https://unpkg.com/@msgpack/msgpack"></script>
+  </head>
+  <body>
+    <div id="chat-container">
+      <div id="chat-area"></div>
+      <div id="input-container">
+        <input type="text" id="message-input" placeholder="Type a message..." />
+        <button id="send-button">Send</button>
+      </div>
+    </div>
+
+    <script>
+      // Create a WebSocket connection
+      const ws = new WebSocket("ws://localhost:3000/chat");
+
+      // Get DOM elements
+      const chatArea = document.getElementById("chat-area");
+      const messageInput = document.getElementById("message-input");
+      const sendButton = document.getElementById("send-button");
+
+      // Function to create and append a chat bubble
+      function createAndAppendChatBubble(message, type) {
+        const chatBubble = document.createElement("div");
+        chatBubble.classList.add("chat-bubble", type);
+        const messageParagraph = document.createElement("p");
+        messageParagraph.textContent = message;
+        chatBubble.appendChild(messageParagraph);
+        chatArea.appendChild(chatBubble);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      ws.onopen = function () {
+        console.log("Connected");
+        ws.binaryType = "arraybuffer";
+      };
+      // Listen for incoming messages from the WebSocket server
+      ws.onmessage = async function (event) {
+        let msg = null;
+
+        if (event.data.stream) {
+          msg = await MessagePack.decodeAsync(event.data.stream());
+        } else {
+          msg = MessagePack.decode(await event.data);
+        }
+
+        createAndAppendChatBubble(msg.payload, "received");
+      };
+
+      // Send a message to the WebSocket server when the "Send" button is clicked
+      sendButton.addEventListener("click", function () {
+        const message = messageInput.value.trim();
+        if (message === "") return;
+
+        // Send the message to the server
+        ws.send(MessagePack.encode({ payload: message }));
+
+        // Create and append sent chat bubble
+        createAndAppendChatBubble(message, "sent");
+
+        // Clear the input field
+        messageInput.value = "";
+      });
+
+      // Allow sending a message when the Enter key is pressed
+      messageInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          sendButton.click();
+        }
+      });
+    </script>
+  </body>
+</html>
